@@ -13,7 +13,7 @@ IMPLICIT NONE
 LOGICAL,SAVE::FIRST_NETCDF=.FALSE.
 CHARACTER (len = *), PARAMETER :: FILE_NAME = "efdc_his.nc"
 INTEGER, SAVE :: nc_step, ncid
-INTEGER :: I, J, K, L, S, T, status, AllocateStatus, DeAllocateStatus
+INTEGER :: I, J, K, L, S, T, status
 INTEGER, SAVE :: I_dimid,J_dimid,kc_dimid,k_dimid,kb_dimid,time_dimid
 INTEGER, SAVE :: ts_varid,time_varid,X_varid,Y_varid,belev_varid,mask_varid
 INTEGER, SAVE :: surfel_varid,u_varid,v_varid,w_varid,sal_varid,dye_varid
@@ -41,29 +41,28 @@ REAL, ALLOCATABLE, DIMENSION(:,:,:) :: sed_mass
 REAL, ALLOCATABLE, DIMENSION(:,:,:,:) :: tss, perc_sed
 
 ! Allocate variables
-ALLOCATE(lat(JC-2,IC-2), STAT = AllocateStatus)
-ALLOCATE(lon(JC-2,IC-2), STAT = AllocateStatus)
-ALLOCATE(hz(JC-2,IC-2), STAT = AllocateStatus)
-ALLOCATE(mask(JC-2,IC-2), STAT = AllocateStatus)
-ALLOCATE(wl(JC-2,IC-2), STAT = AllocateStatus)
-ALLOCATE(u_3d(JC-2,IC-2,KC), STAT = AllocateStatus)
-ALLOCATE(v_3d(JC-2,IC-2,KC), STAT = AllocateStatus)
-ALLOCATE(w_3d(JC-2,IC-2,KC), STAT = AllocateStatus)
-ALLOCATE(shear(JC-2,IC-2), STAT = AllocateStatus)
-ALLOCATE(maxshear(JC-2,IC-2), STAT = AllocateStatus)
-IF(ISTRAN(1).EQ.1) ALLOCATE(salt(JC-2,IC-2,KC), STAT = AllocateStatus)
-IF(ISTRAN(3).EQ.1) ALLOCATE(dye_3d(JC-2,IC-2,KC), STAT = AllocateStatus)
+ALLOCATE(lat(JC-2,IC-2))
+ALLOCATE(lon(JC-2,IC-2))
+ALLOCATE(hz(JC-2,IC-2))
+ALLOCATE(mask(JC-2,IC-2))
+ALLOCATE(wl(JC-2,IC-2))
+ALLOCATE(u_3d(JC-2,IC-2,KC))
+ALLOCATE(v_3d(JC-2,IC-2,KC))
+ALLOCATE(w_3d(JC-2,IC-2,KC))
+ALLOCATE(shear(JC-2,IC-2))
+ALLOCATE(maxshear(JC-2,IC-2))
+IF(ISTRAN(1).EQ.1) ALLOCATE(salt(JC-2,IC-2,KC))
+IF(ISTRAN(3).EQ.1) ALLOCATE(dye_3d(JC-2,IC-2,KC))
 IF(ISTRAN(6).EQ.1)THEN
-    ALLOCATE(grain_size(JC-2,IC-2), STAT = AllocateStatus)
-    ALLOCATE(sed_thick(JC-2,IC-2), STAT = AllocateStatus)
-    ALLOCATE(tss(JC-2,IC-2,KC,NSCM), STAT = AllocateStatus)
-    ALLOCATE(e_rate(JC-2,IC-2), STAT = AllocateStatus)
-    ALLOCATE(tau_crit(JC-2,IC-2), STAT = AllocateStatus)
-    ALLOCATE(sed_mass(JC-2,IC-2,KB), STAT = AllocateStatus)
-    ALLOCATE(perc_sed(JC-2,IC-2,NSCM,KB), STAT = AllocateStatus)
+    ALLOCATE(grain_size(JC-2,IC-2))
+    ALLOCATE(sed_thick(JC-2,IC-2))
+    ALLOCATE(tss(JC-2,IC-2,KC,NSCM))
+    ALLOCATE(e_rate(JC-2,IC-2))
+    ALLOCATE(tau_crit(JC-2,IC-2))
+    ! ALLOCATE(vz_dif(JC-2,IC-2))
+    ALLOCATE(sed_mass(JC-2,IC-2,KB))
+    ALLOCATE(perc_sed(JC-2,IC-2,NSCM,KB))
 ENDIF
-
-IF (AllocateStatus /= 0) STOP "*** Not enough memory for NetCDF variables ***"
 
 ! EFDC time parameter
 time_efdc_nc=DT*FLOAT(N)+TCON*TBEGIN
@@ -241,6 +240,11 @@ IF(.NOT.FIRST_NETCDF)THEN
         status=nf90_put_att(ncid, taucrit_varid, 'caxis_label', 'Bed Critical Shear Stress (dynes/cm^2)')
         status=nf90_put_att(ncid, taucrit_varid, 'units', 'dynes/cm^2')
         
+        ! Define water column vertical diffusivity
+        !status=nf90_def_var(ncid,'vzdif',nf90_float,(/J_dimid,I_dimid, time_dimid/),vzdif_varid)
+        !status=nf90_put_att(ncid, vzdif_varid, 'caxis_label', 'Vertical Diffusivity (m^2/s)')
+        !status=nf90_put_att(ncid, vzdif_varid, 'units', 'm^2/s')
+        
         ! Define cell sediment mass
         status=nf90_def_var(ncid,'tsed',nf90_float,(/J_dimid,I_dimid,kb_dimid,time_dimid/),tsed_varid)
         status=nf90_put_att(ncid, tsed_varid, 'long_name', 'Sediment Mass per Cell')
@@ -333,6 +337,7 @@ DO J=3,JC-2
             ENDDO
             e_rate(J,I)=ETOTO(LIJ(I,J))
             tau_crit(J,I)=TAUCRIT(LIJ(I,J))
+            !vz_dif(J,I)=VZDIF(LIJ(I,J))
         ENDIF
       ELSE
         ! Flag for inactive cells
@@ -369,6 +374,7 @@ DO J=3,JC-2
             ENDDO
             e_rate(J,I)=-7999.
             tau_crit(J,I)=-7999.
+            !vz_dif(J,I)=-7999.
         ENDIF
       ENDIF
    ENDDO
@@ -447,6 +453,10 @@ IF (ISTRAN(6).EQ.1) THEN
     ! Put bed critical shear stress
     status=nf90_put_var(ncid,taucrit_varid,tau_crit,start=start_3d)
     if(status /= nf90_NoErr) call handle_err(status)
+    
+    ! Put vertical diffusivity
+    !status=nf90_put_var(ncid,vzdif_varid,vz_dif,start=start_3d)
+    !if(status /= nf90_NoErr) call handle_err(status)
 
     ! Put cell sediment mass
     status=nf90_put_var(ncid,tsed_varid,sed_mass,start=start_4d)
@@ -460,31 +470,6 @@ ENDIF
 ! Close NetCDF file each time
 status=nf90_close(ncid)
 if(status /= nf90_NoErr) call handle_err(status)
-
-! Deallocate variables
-DEALLOCATE(lat, STAT = DeAllocateStatus)
-DEALLOCATE(lon, STAT = DeAllocateStatus)
-DEALLOCATE(hz, STAT = DeAllocateStatus)
-DEALLOCATE(mask, STAT = DeAllocateStatus)
-DEALLOCATE(wl, STAT = DeAllocateStatus)
-DEALLOCATE(u_3d, STAT = DeAllocateStatus)
-DEALLOCATE(v_3d, STAT = DeAllocateStatus)
-DEALLOCATE(w_3d, STAT = DeAllocateStatus)
-DEALLOCATE(shear, STAT = DeAllocateStatus)
-DEALLOCATE(maxshear, STAT = DeAllocateStatus)
-IF(ISTRAN(1).EQ.1) DEALLOCATE(salt, STAT = DeAllocateStatus)
-IF(ISTRAN(3).EQ.1) DEALLOCATE(dye_3d, STAT = DeAllocateStatus)
-IF(ISTRAN(6).EQ.1)THEN
-    DEALLOCATE(grain_size, STAT = DeAllocateStatus)
-    DEALLOCATE(sed_thick, STAT = DeAllocateStatus)
-    DEALLOCATE(tss, STAT = DeAllocateStatus)
-    DEALLOCATE(e_rate, STAT = DeAllocateStatus)
-    DEALLOCATE(tau_crit, STAT = DeAllocateStatus)
-    DEALLOCATE(sed_mass, STAT = DeAllocateStatus)
-    DEALLOCATE(perc_sed, STAT = DeAllocateStatus)
-ENDIF
-
-IF (AllocateStatus /= 0) STOP "*** Variable not deallocated ***"
 
 
 CONTAINS

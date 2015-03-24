@@ -1,4 +1,4 @@
-# Makefile for Linux Intel Fortran EFDC
+# Makefile for Linux Gfortran EFDC
 #
 #
 # 6/5/2014 Chris Chartrand Created makefile
@@ -6,13 +6,13 @@
 # 6/30/2014 Chris Flanary Added support for NetCDF
 
 # Name of executable file to make
-EXEC=/usr/local/efdc/ifort_bcsaS
+EXEC=/usr/local/efdc/alc_bcsaS
 
 # Set compiler flags
-FC=ifort
-FFLAGS=-O3
-NETCDF_INCLDIR=-I/usr/local/netcdf_ifort/include
-NETCDF_LIBDIR=-L/usr/local/netcdf_ifort/lib -lnetcdff -lnetcdf
+FC= gfortran
+FFLAGS=-O3 -w -ffree-line-length-none -fbounds-check
+NETCDF_INCLDIR=-I/usr/local/netcdf/include
+NETCDF_LIBDIR=-L/usr/local/netcdf/lib -lnetcdff
 
 # Module files needed for linking, compiled first
 MODOBJS := Var_Global_Mod.o DRIFTER-SCJ.o WINDWAVE.o
